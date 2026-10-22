@@ -1,0 +1,82 @@
+# Navidrome + octo-fiesta stack for UGREEN NAS (UGOS Pro, DXP series)
+#
+# Clients (Symfonium, Feishin, Substreamer, DSub, ...) connect to OCTO-FIESTA,
+# not directly to Navidrome. octo-fiesta proxies the Subsonic API to Navidrome,
+# and when a searched track is not in your library it fetches it from Deezer,
+# writes it into the shared music folder, and Navidrome indexes it.
+#
+#   client --> octo-fiesta :5274 --> navidrome :4533 (internal)
+#                    |
+#                    +--> Deezer --> ${MUSIC_DIR}/octo-fiesta/...
+#
+# All tunables live in .env (copy .env.example -> .env).
+
+name: music
+
+services:
+  navidrome:
+    image: deluan/navidrome:${NAVIDROME_TAG:-latest}
+    container_name: navidrome
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    ports:
+      # Optional: direct access to the Navidrome web UI / admin.
+      - "${NAVIDROME_PORT:-4533}:4533"
+    environment:
+      ND_MUSICFOLDER: /music
+      ND_DATAFOLDER: /data
+      ND_LOGLEVEL: ${ND_LOGLEVEL:-info}
+      ND_SCANNER_SCHEDULE: ${ND_SCANNER_SCHEDULE:-@every 15m}
+      # Pick up files written by octo-fiesta quickly (Navidrome >= 0.55)
+      ND_SCANNER_WATCHERWAIT: ${ND_SCANNER_WATCHERWAIT:-10s}
+      ND_SESSIONTIMEOUT: ${ND_SESSIONTIMEOUT:-168h}
+      ND_ENABLESHARING: "true"
+      TZ: ${TZ:-Asia/Manila}
+    volumes:
+      - ${APPDATA_DIR}/navidrome:/data
+      - ${MUSIC_DIR}:/music:ro
+    networks: [music]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4533/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  octo-fiesta:
+    # Option A (default): prebuilt upstream image.
+    image: ${OCTO_FIESTA_IMAGE:-ghcr.io/v1ck3s/octo-fiesta:latest}
+    # Option B: build from source on the NAS. Uncomment, then run
+    #   docker compose build octo-fiesta && docker compose up -d
+    # build:
+    #   context: ${OCTO_FIESTA_GIT:-https://github.com/V1ck3s/octo-fiesta.git#main}
+    container_name: octo-fiesta
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    depends_on:
+      navidrome:
+        condition: service_healthy
+    ports:
+      - "${OCTO_FIESTA_PORT:-5274}:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      TZ: ${TZ:-Asia/Manila}
+      # --- Subsonic backend (Navidrome over the internal docker network) ---
+      Subsonic__Url: http://navidrome:4533
+      Subsonic__MusicService: ${MUSIC_SERVICE:-Deezer}
+      Subsonic__StorageMode: ${STORAGE_MODE:-Permanent}
+      Subsonic__DownloadMode: ${DOWNLOAD_MODE:-Track}
+      Subsonic__ExplicitFilter: ${EXPLICIT_FILTER:-All}
+      # --- Where downloads land (inside the Navidrome music library) ---
+      Library__DownloadPath: /music/octo-fiesta
+      # --- Deezer ---
+      Deezer__Arl: ${DEEZER_ARL:?DEEZER_ARL must be set in .env}
+      Deezer__ArlFallback: ${DEEZER_ARL_FALLBACK:-}
+      Deezer__Quality: ${DEEZER_QUALITY:-FLAC}
+    volumes:
+      - ${MUSIC_DIR}:/music
+    networks: [music]
+
+networks:
+  music:
+    name: music
