@@ -21,7 +21,7 @@ Phone / desktop client ──► octo-fiesta :5274 ──► Navidrome :4533 (in
 |---|---|
 | UGREEN NAS on UGOS Pro | The **Docker** app installed from the App Center |
 | SSH enabled | Control Panel → Terminal → enable SSH (port 22). You can switch it off again afterwards |
-| Deezer account | Premium/HiFi for FLAC; Free works with `DEEZER_QUALITY=MP3_128` |
+| Deezer account | Premium/HiFi recommended (quality is chosen by octo-fiesta based on your account) |
 | (optional) GitHub CLI on your PC | To publish this repo and open the PR (`scripts/open-pr.ps1`) |
 
 ## 2. Prepare shared folders (UGOS web UI)
@@ -60,7 +60,7 @@ id <your-ugos-user>        # e.g. uid=1000 gid=10(admin) -> PUID=1000, PGID=10
 vi .env                    # or edit it in the Files app with the text editor
 ```
 
-At minimum, set `DEEZER_ARL`, `PUID`, `PGID`, `MUSIC_DIR`, `APPDATA_DIR`, and `TZ`.
+At minimum, set `DEEZER_ARL`, `ND_ADMIN_USER`, `ND_ADMIN_PASSWORD`, `PUID`, `PGID`, `MUSIC_DIR`, `APPDATA_DIR`, and `TZ`.
 
 ## 6. Deploy
 
@@ -146,6 +146,7 @@ If PowerShell blocks the script, run `Set-ExecutionPolicy -Scope Process Bypass`
 | Symptom | Fix |
 |---|---|
 | `DEEZER_ARL must be set` | Fill `DEEZER_ARL` in `.env` |
+| Login works on 4533 but fails on 5274 (octo-fiesta log: `Authentication failed: invalid credentials`) | Set `ND_ADMIN_USER` / `ND_ADMIN_PASSWORD` in `.env` to the Navidrome admin account, then `docker compose up -d octo-fiesta` |
 | `permission denied` writing `/music/octo-fiesta` or `/data` | Run `id` again, correct `PUID`/`PGID`, then `sudo chown -R PUID:PGID` on those folders |
 | Client can't log in through 5274 but can through 4533 | Check `docker logs octo-fiesta`; confirm `Subsonic__Url` reaches `http://navidrome:4533` (`docker exec octo-fiesta wget -qO- http://navidrome:4533/ping`) |
 | Deezer results empty or downloads fail | The ARL has expired (it changes when you log out). Grab a new one and run `docker compose up -d` |
