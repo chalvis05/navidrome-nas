@@ -13,12 +13,13 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "GitHub CLI not
 gh auth status | Out-Null
 
 # Safety: never push secrets
-if (git ls-files --error-unmatch .env 2>$null) { throw ".env is tracked by git - remove it before pushing!" }
+$tracked = git ls-files -- .env
+if ($tracked) { throw ".env is tracked by git - remove it before pushing!" }
 
 $visibility = if ($Public) { "--public" } else { "--private" }
 $owner = gh api user --jq .login
 
-if (-not (git remote 2>$null | Select-String -Quiet "^origin$")) {
+if (-not ((git remote) -contains "origin")) {
   gh repo create "$owner/$Repo" $visibility --description "Navidrome + octo-fiesta Docker stack for UGREEN NAS" --source . --remote origin
 }
 
