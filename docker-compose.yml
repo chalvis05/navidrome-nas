@@ -62,17 +62,22 @@ services:
       ASPNETCORE_URLS: http://+:8080
       TZ: ${TZ:-Asia/Manila}
       # --- Subsonic backend (Navidrome over the internal docker network) ---
+      # Keys verified against the image's /app/appsettings.json
       Subsonic__Url: http://navidrome:4533
-      Subsonic__MusicService: ${MUSIC_SERVICE:-Deezer}
+      # Navidrome admin account octo-fiesta uses to authenticate clients / trigger scans
+      Subsonic__AdminUsername: ${ND_ADMIN_USER:?ND_ADMIN_USER must be set in .env}
+      Subsonic__AdminPassword: ${ND_ADMIN_PASSWORD:?ND_ADMIN_PASSWORD must be set in .env}
       Subsonic__StorageMode: ${STORAGE_MODE:-Permanent}
       Subsonic__DownloadMode: ${DOWNLOAD_MODE:-Track}
       Subsonic__ExplicitFilter: ${EXPLICIT_FILTER:-All}
+      Subsonic__CacheDurationHours: ${CACHE_DURATION_HOURS:-1}
+      # Not in appsettings.json; read from code (selects the download provider)
+      Subsonic__MusicService: ${MUSIC_SERVICE:-Deezer}
       # --- Where downloads land (inside the Navidrome music library) ---
       Library__DownloadPath: /music/octo-fiesta
       # --- Deezer ---
       Deezer__Arl: ${DEEZER_ARL:?DEEZER_ARL must be set in .env}
       Deezer__ArlFallback: ${DEEZER_ARL_FALLBACK:-}
-      Deezer__Quality: ${DEEZER_QUALITY:-FLAC}
     volumes:
       - ${MUSIC_DIR}:/music
     networks: [music]
